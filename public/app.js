@@ -138,6 +138,7 @@
     items.push({ icono: 'texto', texto: 'Aumentar tamaño de texto', fn: () => cambiarZoom(PASO_ZOOM), pista: 'Ctrl+1' });
     items.push({ icono: 'texto', texto: 'Reducir tamaño de texto', fn: () => cambiarZoom(-PASO_ZOOM), pista: 'Ctrl+2' });
     items.push({ sep: true });
+    if (window.electronAPI && window.electronAPI.revisarActualizacion) items.push({ icono: 'refrescar', texto: 'Buscar actualizaciones', fn: () => { INV.sello('Buscando actualizaciones…', { dur: 2500 }); window.electronAPI.revisarActualizacion(); } });
     if (window.electronAPI && window.electronAPI.cambiarModo) items.push({ icono: 'enlace', texto: 'Tipo de equipo…', fn: () => window.electronAPI.cambiarModo() });
     items.push({ icono: 'texto', texto: 'Atajos de teclado', pista: 'F1', fn: () => INV.Paneles.atajos() });
     items.push({ icono: 'usuario', texto: `Cambiar usuario (${S.usuario})`, fn: async () => { await INV.Paneles.pedirNombre(); INV.conectarEventos(); pintarLeds(); } });

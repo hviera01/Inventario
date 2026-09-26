@@ -7,4 +7,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   ultimo: () => ipcRenderer.invoke('ultimo'),
   elegirModo: (modo) => ipcRenderer.invoke('elegir-modo', modo),
   cambiarModo: () => ipcRenderer.invoke('cambiar-modo'),
+  revisarActualizacion: () => ipcRenderer.invoke('revisar-actualizacion'),
 });

@@ -109,14 +109,24 @@ async function arrancar() {
   if (!cfg.modo) { await paginaLocal('modo.html'); return; }
   if (cfg.modo === 'servidor') await iniciarServidor();
   else await iniciarCliente();
-  setTimeout(revisarActualizaciones, 4000);
+  setTimeout(() => revisarActualizaciones(false), 4000);
 }
 
-async function revisarActualizaciones() {
-  if (!app.isPackaged || !process.env.PORTABLE_EXECUTABLE_FILE) return;
+async function revisarActualizaciones(manual) {
+  if (!app.isPackaged || !process.env.PORTABLE_EXECUTABLE_FILE) {
+    if (manual && ventana) dialog.showMessageBox(ventana, { type: 'info', title: 'Actualizaciones', message: 'Esta copia no es la versión portátil descargada, no se puede revisar.' });
+    return;
+  }
   let info;
-  try { info = await actualizador.buscarNueva(app.getVersion()); } catch (_) { return; }
-  if (!info || !ventana) return;
+  try { info = await actualizador.buscarNueva(app.getVersion()); } catch (e) {
+    if (manual && ventana) dialog.showMessageBox(ventana, { type: 'warning', title: 'Actualizaciones', message: 'No se pudo revisar si hay una versión nueva.', detail: 'Verificá que este equipo tenga conexión a internet e intentá de nuevo.' });
+    return;
+  }
+  if (!info) {
+    if (manual && ventana) dialog.showMessageBox(ventana, { type: 'info', title: 'Actualizaciones', message: `Ya tenés instalada la versión más reciente (${app.getVersion()}).` });
+    return;
+  }
+  if (!ventana) return;
   const r = await dialog.showMessageBox(ventana, {
     type: 'info',
     title: 'Actualización disponible',
@@ -144,6 +154,7 @@ async function revisarActualizaciones() {
   }
 }
 
+ipcMain.handle('revisar-actualizacion', () => revisarActualizaciones(true));
 ipcMain.handle('elegir-modo', async (_e, modo) => {
   guardarConfig({ modo });
   if (modo === 'servidor') await iniciarServidor(); else await iniciarCliente();

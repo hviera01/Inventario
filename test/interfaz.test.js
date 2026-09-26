@@ -503,3 +503,23 @@ test('interfaz: zoom del texto con Ctrl+1, Ctrl+2, Ctrl+0, Ctrl+rueda y barra', 
     assert.deepEqual(t.errores, []);
   } finally { await t.cerrar(); }
 });
+
+test('interfaz: mantener presionado (touch) abre el menú como el clic derecho; doble toque siempre abre la ficha', async () => {
+  const t = await preparar();
+  try {
+    const { w, d } = t;
+    const celda = celdaDe(d, 'CAJA01', 'marca');
+    celda.dispatchEvent(new w.PointerEvent('pointerdown', { pointerType: 'touch', clientX: 50, clientY: 50, bubbles: true, cancelable: true }));
+    await esperar(() => itemMenu(d, 'Anclar fila arriba'), 3000, 'menú por mantener presionado');
+    celda.dispatchEvent(new w.PointerEvent('pointerup', { pointerType: 'touch', clientX: 50, clientY: 50, bubbles: true }));
+    await esperar(() => { d.body.dispatchEvent(new w.MouseEvent('mousedown', { bubbles: true })); return !d.querySelector('.menu'); }, 3000, 'menú cerrado');
+
+    celdaDe(d, 'IMP1', 'marca').dispatchEvent(new w.PointerEvent('pointerdown', { pointerType: 'touch', clientX: 60, clientY: 60, bubbles: true }));
+    celdaDe(d, 'IMP1', 'marca').dispatchEvent(new w.PointerEvent('pointerup', { pointerType: 'touch', clientX: 60, clientY: 60, bubbles: true }));
+    filas(d).find((x) => x.textContent.includes('IMP1')).dispatchEvent(new w.MouseEvent('dblclick', { bubbles: true }));
+    await esperar(() => d.querySelector('.hoja.completa'), 3000, 'doble toque abre la ficha');
+    d.querySelector('.hoja-cab .cerrar').click();
+    await esperar(() => !d.querySelector('.hoja'), 3000, 'ficha cerrada');
+    assert.deepEqual(t.errores, []);
+  } finally { await t.cerrar(); }
+});

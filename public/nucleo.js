@@ -66,6 +66,7 @@
     copiar: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>',
     abajo: '<path d="M6 9l6 6 6-6"/>',
     limpiarFiltro: '<path d="M3 5h18l-7 8v6l-4-2v-4z"/><path d="M17 17l4 4M21 17l-4 4"/>',
+    refrescar: '<path d="M4 4v6h6"/><path d="M20 20v-6h-6"/><path d="M5.5 9A8 8 0 0 1 19 8M18.5 15a8 8 0 0 1-13.5 1"/>',
   };
   function ico(nombre, extra) {
     const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');

@@ -359,11 +359,8 @@
     else if (S.celda) INV.Celdas.limpiarSeleccion();
   }
 
-  let ultimoPuntero = 'mouse';
-
   function alDoble(e) {
     if (e.target.closest('td.n,th,.celda-edit,.f-celda')) return;
-    if (ultimoPuntero === 'touch') return;
     const tr = e.target.closest('tbody tr[data-id]');
     if (tr) INV.bus.emit('fila-accion', { accion: 'editar', id: tr.dataset.id });
   }
@@ -399,7 +396,6 @@
   }
 
   function alPunteroBajo(e) {
-    ultimoPuntero = e.pointerType || 'mouse';
     if (e.pointerType !== 'touch') return;
     if (e.target.closest('.celda-edit,.f-celda,.res,[data-mas],[data-quitar-filtros]')) return;
     if (!e.target.closest('thead th[data-k], tbody tr[data-id]')) return;
