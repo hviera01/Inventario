@@ -1,0 +1,58 @@
+{
+  "name": "inventario",
+  "version": "1.0.0",
+  "description": "Inventario de activos de TI",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test \"test/*.test.js\"",
+    "dist": "electron-builder --win portable"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "acorn": "^8.18.0",
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3",
+    "jsdom": "^30.1.1",
+    "sharp": "^0.35.4"
+  },
+  "author": "Inventario",
+  "build": {
+    "appId": "app.inventario",
+    "productName": "Inventario",
+    "executableName": "Inventario",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "package.json",
+      "lib/**",
+      "public/**",
+      "electron/**",
+      "!**/*.map"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "public/icono.png",
+      "artifactName": "Inventario-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Inventario-${version}.exe"
+    },
+    "compression": "maximum"
+  }
+}
