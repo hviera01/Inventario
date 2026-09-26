@@ -131,7 +131,7 @@ async function revisarActualizaciones(manual) {
     type: 'info',
     title: 'Actualización disponible',
     message: `Hay una versión nueva del programa (${info.version}). Tenés la ${app.getVersion()}.`,
-    detail: 'Se descarga sola y el programa se reinicia al terminar. Tarda uno o dos minutos según la conexión.',
+    detail: 'Se descarga sola, el programa se cierra y vuelve a abrirse solo. En total puede tardar uno o dos minutos: no lo vuelvan a abrir a mano mientras tanto, aunque la pantalla esté un rato sin mostrar nada.',
     buttons: ['Actualizar ahora', 'Más tarde'],
     defaultId: 0,
     cancelId: 1,
