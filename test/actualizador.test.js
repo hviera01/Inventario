@@ -86,7 +86,8 @@ test('actualizador: descarga el archivo y arma el script que lo reemplaza y rein
     try {
       const ps1 = await descargarYPreparar(base + '/archivo');
       const contenido = fs.readFileSync(ps1, 'utf8');
-      assert.match(contenido, /Copy-Item -Path \$src -Destination \$dest -Force/);
+      assert.match(contenido, /Rename-Item -Path \$dest/);
+      assert.match(contenido, /Move-Item -Path \$src -Destination \$dest -Force/);
       assert.match(contenido, /Start-Process -FilePath \$dest/);
       assert.ok(contenido.includes(destino.replace(/'/g, "''")));
       fs.rmSync(ps1, { force: true });
@@ -109,3 +110,54 @@ test('actualizador: rechaza cuando la descarga viene incompleta o corrupta', asy
     }
   });
 });
+
+test('actualizador: el script real espera a que el archivo se libere, lo reemplaza y reinicia', { timeout: 20000 }, async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'inv-real-'));
+  const destino = path.join(dir, 'FalsoInventario.cmd');
+  const marcador = path.join(dir, 'marcador.txt');
+  fs.writeFileSync(destino, '@echo off\r\necho version vieja\r\n');
+
+  const bloqueo = require('node:child_process').spawn('powershell.exe', ['-NoProfile', '-Command',
+    `$fs = [System.IO.File]::Open('${destino}', 'Open', 'ReadWrite', 'None'); Start-Sleep -Milliseconds 1500; $fs.Close()`,
+  ], { stdio: 'ignore' });
+  await new Promise((r) => setTimeout(r, 200));
+
+  await conServidorFalso(async (base) => {
+    process.env.PORTABLE_EXECUTABLE_FILE = destino;
+    try {
+      const ps1 = await descargarYPreparar(base + '/archivo', { esperaInicialMs: 100, intentosMax: 20 });
+      const nuevoContenido = `@echo off\r\necho version nueva > "${marcador}"\r\n`;
+      const rutaNuevo = path.join(os.tmpdir(), 'Inventario-descarga.exe');
+      fs.writeFileSync(rutaNuevo, nuevoContenido);
+
+      await new Promise((resolve, reject) => {
+        const p = require('node:child_process').spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ps1], { stdio: 'ignore' });
+        p.on('exit', resolve);
+        p.on('error', reject);
+      });
+
+      await esperar(() => fs.existsSync(marcador), 8000, 'el archivo relanzado creó el marcador');
+      const contenidoFinal = fs.readFileSync(destino, 'utf8');
+      assert.match(contenidoFinal, /version nueva/);
+      assert.equal(fs.existsSync(destino + '.viejo'), false, 'se limpió el respaldo temporal');
+      const log = fs.readFileSync(path.join(os.tmpdir(), 'inventario-actualizar.log'), 'utf8');
+      assert.match(log, /reemplazo ok/);
+      assert.match(log, /reiniciando/);
+      fs.rmSync(rutaNuevo, { force: true });
+    } finally {
+      delete process.env.PORTABLE_EXECUTABLE_FILE;
+    }
+  });
+
+  bloqueo.kill();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+async function esperar(fn, ms, msg) {
+  const fin = Date.now() + ms;
+  while (Date.now() < fin) {
+    if (fn()) return;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  throw new Error('Tiempo agotado esperando: ' + msg);
+}
