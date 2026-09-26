@@ -21,7 +21,7 @@ El programa portátil para Windows está en la sección **Releases** del reposit
 - Base de prueba con restablecimiento a datos reales y copia automática previa.
 - Respaldo diario a una carpeta (por ejemplo, la de Google Drive) y copias automáticas locales.
 - Acceso desde otros equipos, tabletas y celulares por la red local, con PIN.
-- Actualización automática: al abrir el programa, avisa si hay una versión nueva y, si se acepta, se descarga y se reinicia solo.
+- Aviso de versión nueva: al abrir el programa, revisa si hay una versión más reciente y, si la hay, ofrece abrir la página de descarga (no se actualiza solo).
 
 ## Tecnología
 
@@ -49,7 +49,7 @@ El programa portátil para Windows está en la sección **Releases** del reposit
 
 Es un archivo portátil, no un instalador: no queda registrado en "Aplicaciones y características" de Windows. Desinstalarlo es borrar el archivo `.exe` y, si se quiere borrar también la base de datos, la carpeta `%APPDATA%\Inventario`.
 
-Cada vez que se abre el programa revisa en segundo plano si hay una versión más nueva publicada en este repositorio. Si la hay, pregunta antes de hacer nada; al aceptar, la descarga y reinicia el programa solo, sin perder la base de datos. Si se declina, sigue preguntando en las próximas aperturas hasta que se acepte.
+Cada vez que se abre el programa revisa en segundo plano si hay una versión más nueva publicada en este repositorio. Si la hay, avisa y ofrece abrir la página de descarga; ahí se baja el `.exe` nuevo a mano y se reemplaza el archivo, igual que la primera vez. El programa no se reemplaza ni se reinicia solo.
 
 ## Uso
 

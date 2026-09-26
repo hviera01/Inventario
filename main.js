@@ -1,7 +1,6 @@
 const { app, BrowserWindow, dialog, Menu, ipcMain, shell } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
-const { spawn } = require('node:child_process');
 const { Inventario } = require('./lib/db');
 const { crearServidor } = require('./lib/servidor');
 const { respaldoDelDia, snapshotLocal, respaldadoHoy } = require('./lib/respaldos');
@@ -112,9 +111,11 @@ async function arrancar() {
   setTimeout(() => revisarActualizaciones(false), 4000);
 }
 
+const URL_RELEASES = 'https://github.com/hviera01/Inventario/releases/latest';
+
 async function revisarActualizaciones(manual) {
-  if (!app.isPackaged || !process.env.PORTABLE_EXECUTABLE_FILE) {
-    if (manual && ventana) dialog.showMessageBox(ventana, { type: 'info', title: 'Actualizaciones', message: 'Esta copia no es la versión portátil descargada, no se puede revisar.' });
+  if (!app.isPackaged) {
+    if (manual && ventana) dialog.showMessageBox(ventana, { type: 'info', title: 'Actualizaciones', message: 'Esta copia no se puede revisar (no es una versión instalada).' });
     return;
   }
   let info;
@@ -131,27 +132,13 @@ async function revisarActualizaciones(manual) {
     type: 'info',
     title: 'Actualización disponible',
     message: `Hay una versión nueva del programa (${info.version}). Tenés la ${app.getVersion()}.`,
-    detail: 'Se descarga sola, el programa se cierra y vuelve a abrirse solo. En total puede tardar uno o dos minutos: no lo vuelvan a abrir a mano mientras tanto, aunque la pantalla esté un rato sin mostrar nada.',
-    buttons: ['Actualizar ahora', 'Más tarde'],
+    detail: 'El programa no se actualiza solo: se abre la página de descarga para bajar el archivo nuevo a mano, igual que la primera vez. La base de datos no se toca con esto.',
+    buttons: ['Abrir página de descarga', 'Más tarde'],
     defaultId: 0,
     cancelId: 1,
   });
   if (r.response !== 0) return;
-  try {
-    const ps1 = await actualizador.descargarYPreparar(info.url);
-    spawn('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-ExecutionPolicy', 'Bypass', '-File', ps1], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
-    cerrando = true;
-    await cerrarTodo();
-    app.exit(0);
-  } catch (e) {
-    if (ventana) {
-      dialog.showMessageBox(ventana, {
-        type: 'error', title: 'No se pudo actualizar',
-        message: 'No se pudo descargar la actualización.',
-        detail: `${e.message}\n\nPodés descargarla a mano desde la página de GitHub del proyecto y reemplazar el archivo.`,
-      });
-    }
-  }
+  shell.openExternal(URL_RELEASES);
 }
 
 ipcMain.handle('revisar-actualizacion', () => revisarActualizaciones(true));

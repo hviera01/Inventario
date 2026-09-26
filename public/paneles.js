@@ -102,8 +102,15 @@
     }
 
     async function cambiarPin() {
-      const nuevo = window.prompt('Nuevo PIN (4 a 8 dígitos). Los demás equipos deberán ingresarlo nuevamente.', d.pin);
-      if (!nuevo) return;
+      const inp = h('input', { type: 'text', inputmode: 'numeric', maxlength: 8, autocomplete: 'off', value: d.pin, oninput: (e) => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 8); } });
+      const ir = await INV.confirmar({
+        titulo: 'Cambiar PIN',
+        texto: 'Nuevo PIN (4 a 8 dígitos). Los demás equipos deberán ingresarlo nuevamente.',
+        ok: 'GUARDAR',
+        extra: h('div', { class: 'campo' }, h('label', null, 'PIN'), inp),
+      });
+      if (!ir) return;
+      const nuevo = inp.value.trim();
       if (!/^\d{4,8}$/.test(nuevo)) { INV.sello('El PIN debe tener entre 4 y 8 dígitos.', { tipo: 'mal' }); return; }
       await INV.pedir('POST', '/api/ajustes', { pin: nuevo });
       d = { ...d, ...(await INV.pedir('GET', '/api/conexion')) };
