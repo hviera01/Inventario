@@ -1,10 +1,12 @@
 const { app, BrowserWindow, dialog, Menu, ipcMain, shell } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
+const { spawn } = require('node:child_process');
 const { Inventario } = require('./lib/db');
 const { crearServidor } = require('./lib/servidor');
 const { respaldoDelDia, snapshotLocal, respaldadoHoy } = require('./lib/respaldos');
 const red = require('./lib/red');
+const actualizador = require('./lib/actualizador');
 
 const PUERTO = 47800;
 let ventana = null;
@@ -107,6 +109,39 @@ async function arrancar() {
   if (!cfg.modo) { await paginaLocal('modo.html'); return; }
   if (cfg.modo === 'servidor') await iniciarServidor();
   else await iniciarCliente();
+  setTimeout(revisarActualizaciones, 4000);
+}
+
+async function revisarActualizaciones() {
+  if (!app.isPackaged || !process.env.PORTABLE_EXECUTABLE_FILE) return;
+  let info;
+  try { info = await actualizador.buscarNueva(app.getVersion()); } catch (_) { return; }
+  if (!info || !ventana) return;
+  const r = await dialog.showMessageBox(ventana, {
+    type: 'info',
+    title: 'Actualización disponible',
+    message: `Hay una versión nueva del programa (${info.version}). Tenés la ${app.getVersion()}.`,
+    detail: 'Se descarga sola y el programa se reinicia al terminar. Tarda uno o dos minutos según la conexión.',
+    buttons: ['Actualizar ahora', 'Más tarde'],
+    defaultId: 0,
+    cancelId: 1,
+  });
+  if (r.response !== 0) return;
+  try {
+    const ps1 = await actualizador.descargarYPreparar(info.url);
+    spawn('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-ExecutionPolicy', 'Bypass', '-File', ps1], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+    cerrando = true;
+    await cerrarTodo();
+    app.exit(0);
+  } catch (e) {
+    if (ventana) {
+      dialog.showMessageBox(ventana, {
+        type: 'error', title: 'No se pudo actualizar',
+        message: 'No se pudo descargar la actualización.',
+        detail: `${e.message}\n\nPodés descargarla a mano desde la página de GitHub del proyecto y reemplazar el archivo.`,
+      });
+    }
+  }
 }
 
 ipcMain.handle('elegir-modo', async (_e, modo) => {

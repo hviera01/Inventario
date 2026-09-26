@@ -359,25 +359,62 @@
     else if (S.celda) INV.Celdas.limpiarSeleccion();
   }
 
+  let ultimoPuntero = 'mouse';
+
   function alDoble(e) {
     if (e.target.closest('td.n,th,.celda-edit,.f-celda')) return;
+    if (ultimoPuntero === 'touch') return;
     const tr = e.target.closest('tbody tr[data-id]');
     if (tr) INV.bus.emit('fila-accion', { accion: 'editar', id: tr.dataset.id });
   }
 
-  function alContexto(e) {
-    if (e.target.closest('.celda-edit,.f-celda')) return;
-    const th = e.target.closest('thead th[data-k]');
-    if (th) { e.preventDefault(); menuColumna(th.dataset.k, e.clientX, e.clientY); return; }
-    const tr = e.target.closest('tbody tr[data-id]');
+  function abrirMenuEn(objetivo, x, y) {
+    const th = objetivo.closest('thead th[data-k]');
+    if (th) { menuColumna(th.dataset.k, x, y); return; }
+    const tr = objetivo.closest('tbody tr[data-id]');
     if (!tr) return;
-    e.preventDefault();
     const id = tr.dataset.id;
-    const td = e.target.closest('td');
+    const td = objetivo.closest('td');
     const m = td && /(?:^|\s)k-([a-z_]+)/.exec(td.className);
     ponerActiva(id);
     if (m && INV.Celdas.habilitado()) INV.Celdas.seleccionar(id, m[1], { desplazar: false });
-    menuFila(id, m ? m[1] : null, e.clientX, e.clientY);
+    menuFila(id, m ? m[1] : null, x, y);
+  }
+
+  function alContexto(e) {
+    if (e.target.closest('.celda-edit,.f-celda')) return;
+    cancelarPresionLarga();
+    if (!e.target.closest('thead th[data-k], tbody tr[data-id]')) return;
+    e.preventDefault();
+    abrirMenuEn(e.target, e.clientX, e.clientY);
+  }
+
+  let presionLarga = null;
+  let inicioPresion = null;
+  const UMBRAL_MOVIMIENTO = 10;
+
+  function cancelarPresionLarga() {
+    if (presionLarga) { clearTimeout(presionLarga); presionLarga = null; }
+    inicioPresion = null;
+  }
+
+  function alPunteroBajo(e) {
+    ultimoPuntero = e.pointerType || 'mouse';
+    if (e.pointerType !== 'touch') return;
+    if (e.target.closest('.celda-edit,.f-celda,.res,[data-mas],[data-quitar-filtros]')) return;
+    if (!e.target.closest('thead th[data-k], tbody tr[data-id]')) return;
+    const objetivo = e.target;
+    inicioPresion = { x: e.clientX, y: e.clientY };
+    presionLarga = setTimeout(() => {
+      presionLarga = null;
+      if (navigator.vibrate) navigator.vibrate(12);
+      abrirMenuEn(objetivo, inicioPresion.x, inicioPresion.y);
+    }, 520);
+  }
+
+  function alPunteroMovido(e) {
+    if (!presionLarga || !inicioPresion) return;
+    if (Math.abs(e.clientX - inicioPresion.x) > UMBRAL_MOVIMIENTO || Math.abs(e.clientY - inicioPresion.y) > UMBRAL_MOVIMIENTO) cancelarPresionLarga();
   }
 
   function alMousedown(e) {
@@ -391,7 +428,14 @@
     let i = ids.indexOf(S.activoId);
     i = i < 0 ? (delta > 0 ? 0 : ids.length - 1) : Math.max(0, Math.min(ids.length - 1, i + delta));
     if (i >= visibles) { visibles = i + LOTE; pintar(); }
-    ponerActiva(ids[i], { desplazar: true });
+    const nuevoId = ids[i];
+    if (S.seleccion.size === 1 && !S.seleccion.has(nuevoId)) {
+      S.seleccion.clear();
+      S.seleccion.add(nuevoId);
+      ultimaMarca = nuevoId;
+      actualizarSeleccionVisual();
+    }
+    ponerActiva(nuevoId, { desplazar: true });
   }
 
   function alTecla(e) {
@@ -419,6 +463,11 @@
     el.addEventListener('dblclick', alDoble);
     el.addEventListener('contextmenu', alContexto);
     el.addEventListener('mousedown', alMousedown);
+    el.addEventListener('pointerdown', alPunteroBajo);
+    el.addEventListener('pointermove', alPunteroMovido);
+    el.addEventListener('pointerup', cancelarPresionLarga);
+    el.addEventListener('pointercancel', cancelarPresionLarga);
+    el.addEventListener('pointerleave', cancelarPresionLarga);
     el.addEventListener('scroll', () => INV.Filtros.cerrarPopover(), { passive: true });
     INV.bus.on('resultado', () => { visibles = LOTE; pintar(); });
     window.matchMedia('(max-width: 860px)').addEventListener('change', () => { firma = ''; pintar(); });

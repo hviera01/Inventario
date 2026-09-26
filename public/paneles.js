@@ -93,8 +93,11 @@
           h('div', { class: 'paso' }, h('div', null, h('h3', null, 'Ingresar el PIN'), h('p', null, 'Se solicita una sola vez por equipo.'),
             h('div', { class: 'pin-tag' }, ...d.pin.split('').map((c) => h('span', null, c))),
             h('div', { style: { marginTop: '10px' } }, h('button', { class: 'btn mini', onclick: cambiarPin }, ico('llave'), 'Cambiar PIN')))),
-          h('div', { class: 'paso' }, h('div', null, h('h3', null, 'Acceso desde iPhone, iPad o Android'), h('p', null, 'Conectar el dispositivo a la misma red y escanear el código con la cámara.'),
-            h('div', { class: 'enlace-fila' }, h('div', { class: 'qr', html: d.qr }), h('p', { class: 'nota' }, 'Para instalarla como aplicación en iOS: Compartir › Añadir a pantalla de inicio. El teléfono que comparte la red puede no tener acceso por sí mismo; use otro dispositivo.'))))),
+          h('div', { class: 'paso' }, h('div', null, h('h3', null, 'Acceso desde iPhone, iPad o Android'), h('p', null, 'Conectar el dispositivo a la misma red y escanear uno de los códigos con la cámara.'),
+            h('div', { class: 'qrs' },
+              h('div', { class: 'qr-bloque' }, h('div', { class: 'qr', html: d.qr }), h('span', null, 'Por dirección'), h('code', null, d.principal.replace('http://', ''))),
+              d.qrNombre ? h('div', { class: 'qr-bloque' }, h('div', { class: 'qr', html: d.qrNombre }), h('span', null, 'Por nombre del equipo'), h('code', null, d.urlNombre.replace('http://', '')), h('em', null, 'no cambia si la IP cambia')) : null),
+            h('p', { class: 'nota' }, 'Si van a agregar el ícono a la pantalla de inicio (iOS: Compartir › Añadir a pantalla de inicio), conviene escanear el código «Por nombre del equipo»: sigue funcionando aunque la IP cambie más adelante. El teléfono que comparte la red puede no tener acceso por sí mismo; use otro dispositivo.')))),
         fw);
     }
 
@@ -203,9 +206,9 @@
             h('div', { class: 'url-grande', style: { background: 'var(--papel-2)', color: 'var(--tinta)', borderColor: 'var(--tinta)' } },
               h('code', { style: { fontSize: '14px' } }, a.carpetaRespaldo || 'No configurada'),
               S.local ? h('button', { onclick: elegirCarpeta }, 'ELEGIR') : null),
-            h('p', { class: 'nota' }, S.local ? 'Seleccionar la carpeta sincronizada de Google Drive en este equipo. Cada respaldo incluye el archivo Excel completo y una copia de la base de datos; Drive los sincroniza cuando hay conexión a internet.' : 'La carpeta se configura desde el equipo servidor.')),
+            h('p', { class: 'nota' }, S.local ? 'Seleccionar la carpeta sincronizada de Google Drive en este equipo. Una vez elegida, el sistema respalda solo una vez al día mientras el programa esté abierto, sin necesidad de hacer nada. Cada respaldo incluye el Excel completo y una copia de la base; Drive los sincroniza cuando hay internet.' : 'La carpeta se configura desde el equipo servidor.')),
           h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap' } },
-            h('button', { class: 'btn senal', onclick: hacer }, ico('disco'), 'Generar respaldo'),
+            h('button', { class: 'btn senal', onclick: hacer }, ico('disco'), 'Generar respaldo ahora'),
             h('button', { class: 'btn', onclick: () => exportar(null, nombreArchivo) }, ico('excel'), 'Exportar Excel (completo)'),
             h('button', { class: 'btn', onclick: () => exportar(S.resultado.filas.map((f) => f.id), nombreArchivo.replace('.xlsx', ' (filtrado).xlsx')) }, ico('excel'), `Exportar vista actual (${S.resultado.filas.length})`)),
           h('div', null,
