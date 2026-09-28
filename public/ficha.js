@@ -32,30 +32,31 @@
     let sel = -1;
     let alDesplazar = null;
 
+    function contarPor(campo, pred) {
+      const m = new Map();
+      for (const f of S.activos) if (f[campo] && pred(f)) m.set(f[campo], (m.get(f[campo]) || 0) + 1);
+      return [...m.entries()].sort((a, b) => b[1] - a[1]);
+    }
+
     function opciones() {
       const base = INV.conteosDe(campo);
+      const familia = (valores.descripcion || '').trim() ? C.familiaEquipo(valores.descripcion).id : 'otro';
       if (campo === 'modelo') {
         const marca = B.norm(valores.marca || '');
-        if (marca) {
-          const m = new Map();
-          for (const f of S.activos) if (f.modelo && B.norm(f.marca) === marca) m.set(f.modelo, (m.get(f.modelo) || 0) + 1);
-          const propios = [...m.entries()].sort((a, b) => b[1] - a[1]);
-          const usados = new Set(propios.map(([v]) => v));
-          return [...propios, ...base.filter(([v]) => !usados.has(v))];
-        }
+        if (!marca && familia === 'otro') return base;
+        const capas = [];
+        if (marca && familia !== 'otro') capas.push(contarPor('modelo', (f) => B.norm(f.marca) === marca && C.familiaEquipo(f.descripcion).id === familia));
+        if (marca) capas.push(contarPor('modelo', (f) => B.norm(f.marca) === marca));
+        if (familia !== 'otro') capas.push(contarPor('modelo', (f) => C.familiaEquipo(f.descripcion).id === familia));
+        const usados = new Set();
+        const propios = [];
+        for (const capa of capas) for (const it of capa) if (!usados.has(it[0])) { usados.add(it[0]); propios.push(it); }
+        return [...propios, ...base.filter(([v]) => !usados.has(v))];
       }
-      if ((campo === 'marca' || campo === 'modelo') && (valores.descripcion || '').trim()) {
-        const familia = C.familiaEquipo(valores.descripcion).id;
-        if (familia !== 'otro') {
-          const m = new Map();
-          for (const f of S.activos) {
-            if (!f[campo] || C.familiaEquipo(f.descripcion).id !== familia) continue;
-            m.set(f[campo], (m.get(f[campo]) || 0) + 1);
-          }
-          const propios = [...m.entries()].sort((a, b) => b[1] - a[1]);
-          const usados = new Set(propios.map(([v]) => v));
-          return [...propios, ...base.filter(([v]) => !usados.has(v))];
-        }
+      if (campo === 'marca' && familia !== 'otro') {
+        const propios = contarPor('marca', (f) => C.familiaEquipo(f.descripcion).id === familia);
+        const usados = new Set(propios.map(([v]) => v));
+        return [...propios, ...base.filter(([v]) => !usados.has(v))];
       }
       return base;
     }

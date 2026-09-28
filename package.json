@@ -1,6 +1,6 @@
 {
   "name": "inventario",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Inventario de activos de TI",
   "main": "main.js",
   "private": true,

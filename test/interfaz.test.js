@@ -352,6 +352,56 @@ test('interfaz: clic derecho en filas y columnas, anclar fila y columna, filtrar
   } finally { await t.cerrar(); }
 });
 
+test('interfaz: sugerencias de Marca/Modelo priorizadas por el tipo de equipo en Descripción', async () => {
+  const t = await preparar();
+  try {
+    const { w, d, db } = t;
+    d.querySelector('#barra .btn.senal').click();
+    await esperar(() => d.querySelector('.hoja.completa'), 3000, 'ficha nueva');
+    escribir(w, d.getElementById('f-descripcion'), 'Mouse inalambrico');
+    escribir(w, d.getElementById('f-marca'), 'Logitech');
+    escribir(w, d.getElementById('f-modelo'), 'M170');
+    escribir(w, d.getElementById('f-nombre'), 'MOUSE1');
+    [...d.querySelectorAll('.hoja-pie .btn')].find((b) => b.textContent.includes('agregar otro')).click();
+    await esperar(() => db.listar().some((f) => f.nombre === 'MOUSE1'), 3000, 'mouse 1 guardado');
+    await esperar(() => d.querySelector('.hoja.completa') && d.getElementById('f-nombre').value === '', 3000, 'segunda ficha lista');
+
+    escribir(w, d.getElementById('f-descripcion'), 'Mouse alambrico');
+    escribir(w, d.getElementById('f-marca'), 'Dell');
+    escribir(w, d.getElementById('f-modelo'), 'MS116');
+    escribir(w, d.getElementById('f-nombre'), 'MOUSE2');
+    [...d.querySelectorAll('.hoja-pie .btn')].find((b) => b.textContent.includes('Guardar y cerrar')).click();
+    await esperar(() => !d.querySelector('.hoja'), 3000, 'ficha cerrada');
+    await esperar(() => db.listar().some((f) => f.nombre === 'MOUSE2'), 3000, 'mouse 2 guardado');
+
+    d.querySelector('#barra .btn.senal').click();
+    await esperar(() => d.querySelector('.hoja.completa'), 3000, 'tercera ficha');
+    escribir(w, d.getElementById('f-descripcion'), 'Mouse');
+    d.querySelectorAll('.sugs').forEach((el) => el.remove());
+
+    d.getElementById('f-marca').mostrarSugerencias();
+    const textoMarca = [...d.querySelectorAll('.sugs .sug')].slice(0, 2).map((b) => b.textContent);
+    assert.ok(textoMarca.some((t2) => t2.includes('LOGITECH')), 'LOGITECH (marca solo de mouse) aparece entre las primeras: ' + JSON.stringify(textoMarca));
+    assert.ok(textoMarca.some((t2) => t2.includes('DELL')), 'DELL aparece entre las primeras: ' + JSON.stringify(textoMarca));
+    assert.ok(!textoMarca.some((t2) => t2.includes('HIKVISION')), 'HIKVISION (otra familia, más usada globalmente) no debería ir primero: ' + JSON.stringify(textoMarca));
+    d.querySelectorAll('.sugs').forEach((el) => el.remove());
+
+    escribir(w, d.getElementById('f-marca'), 'DELL');
+    d.getElementById('f-modelo').mostrarSugerencias();
+    const textoModelo = [...d.querySelectorAll('.sugs .sug')].map((b) => b.textContent);
+    const iMS116 = textoModelo.findIndex((t2) => t2.includes('MS116'));
+    const iOptiplex = textoModelo.findIndex((t2) => t2.includes('OPTIPLEX'));
+    assert.ok(iMS116 >= 0, 'MS116 (modelo de mouse DELL) aparece en las sugerencias: ' + JSON.stringify(textoModelo));
+    assert.ok(iOptiplex >= 0, 'OPTIPLEX (otro modelo DELL, de desktop) también aparece: ' + JSON.stringify(textoModelo));
+    assert.ok(iMS116 < iOptiplex, 'con Descripción "Mouse" y Marca "DELL", MS116 debe ir antes que OPTIPLEX aunque OPTIPLEX sea más común en general: ' + JSON.stringify(textoModelo));
+    d.querySelector('.hoja-cab .cerrar').click();
+    await esperar(() => d.querySelector('.hoja.chica'), 3000, 'confirmar descarte');
+    d.querySelector('.hoja.chica .hoja-pie .btn:last-child').click();
+    await esperar(() => !d.querySelector('.hoja'), 3000, 'todo cerrado');
+    assert.deepEqual(t.errores, []);
+  } finally { await t.cerrar(); }
+});
+
 test('interfaz: marcar y quitar pendiente, con vista de pendientes en la barra', async () => {
   const t = await preparar();
   try {
