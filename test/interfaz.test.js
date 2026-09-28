@@ -352,6 +352,60 @@ test('interfaz: clic derecho en filas y columnas, anclar fila y columna, filtrar
   } finally { await t.cerrar(); }
 });
 
+test('interfaz: marcar y quitar pendiente, con vista de pendientes en la barra', async () => {
+  const t = await preparar();
+  try {
+    const { w, d, db } = t;
+    clicDerecho(w, celdaDe(d, 'PC-VENTAS09', 'nombre'));
+    const marcar = await esperar(() => itemMenu(d, 'Marcar como pendiente'), 3000, 'menú con marcar pendiente');
+    marcar.click();
+    await esperar(() => d.querySelector('.hoja.chica textarea'), 3000, 'diálogo de motivo');
+    escribir(w, d.querySelector('.hoja.chica textarea'), 'Falta confirmar MAC con el proveedor');
+    d.querySelector('.hoja.chica .hoja-pie .btn:last-child').click();
+    await esperar(() => db.listar().find((f) => f.nombre === 'PC-VENTAS09').pendiente === 1, 3000, 'marcado pendiente en la base');
+    await esperar(() => filas(d).find((r) => r.textContent.includes('PC-VENTAS09')).classList.contains('pendiente'), 3000, 'fila resaltada');
+    await esperar(() => !d.getElementById('ins-pend').classList.contains('oculto') && d.getElementById('ins-pend').textContent === '1', 3000, 'insignia de pendientes');
+
+    d.getElementById('btn-pend').click();
+    await esperar(() => filas(d).length === 1 && filas(d)[0].textContent.includes('PC-VENTAS09'), 3000, 'modo pendientes filtra la tabla');
+    d.getElementById('btn-pend').click();
+    await esperar(() => filas(d).length === 6, 3000, 'vuelve a la vista completa');
+
+    clicDerecho(w, celdaDe(d, 'PC-VENTAS09', 'nombre'));
+    const quitar = await esperar(() => itemMenu(d, 'quitar pendiente'), 3000, 'menú con quitar pendiente');
+    quitar.click();
+    await esperar(() => d.querySelector('.hoja.chica'), 3000, 'diálogo con el motivo');
+    assert.match(d.querySelector('.hoja.chica').textContent, /Falta confirmar MAC con el proveedor/);
+    d.querySelector('.hoja.chica .hoja-pie .btn:last-child').click();
+    await esperar(() => db.listar().find((f) => f.nombre === 'PC-VENTAS09').pendiente === 0, 3000, 'pendiente quitado');
+    await esperar(() => d.getElementById('ins-pend').classList.contains('oculto'), 3000, 'insignia oculta de nuevo');
+    assert.deepEqual(t.errores, []);
+  } finally { await t.cerrar(); }
+});
+
+test('interfaz: minimizar la ficha muestra la tabla sin perder los datos del formulario', async () => {
+  const t = await preparar();
+  try {
+    const { w, d } = t;
+    d.querySelector('#barra .btn.senal').click();
+    await esperar(() => d.querySelector('.hoja.completa'), 3000, 'ficha nueva');
+    assert.equal(d.getElementById('f-ubicacion').value, 'Oficina Principal', 'ubicación por defecto');
+    escribir(w, d.getElementById('f-nombre'), 'SIN-GUARDAR-AUN');
+    d.querySelector('.hoja-cab .minimizar').click();
+    await esperar(() => d.querySelector('.velo.completa').classList.contains('minimizada'), 3000, 'ficha minimizada');
+    await esperar(() => d.querySelector('.chip-min'), 3000, 'chip flotante para volver');
+    assert.ok(filas(d).length > 0, 'la tabla queda visible y usable');
+    d.querySelector('.chip-min').click();
+    await esperar(() => !d.querySelector('.velo.completa').classList.contains('minimizada') && !d.querySelector('.chip-min'), 3000, 'ficha restaurada');
+    assert.equal(d.getElementById('f-nombre').value, 'SIN-GUARDAR-AUN', 'los datos del formulario se conservaron');
+    d.querySelector('.hoja-cab .cerrar').click();
+    await esperar(() => d.querySelector('.hoja.chica'), 3000, 'confirmar descarte al cerrar de verdad');
+    d.querySelector('.hoja.chica .hoja-pie .btn:last-child').click();
+    await esperar(() => !d.querySelector('.hoja'), 3000, 'todo cerrado');
+    assert.deepEqual(t.errores, []);
+  } finally { await t.cerrar(); }
+});
+
 test('interfaz: atajos, autocompletado por equipo único y Ctrl+Enter en la ficha', async () => {
   const t = await preparar();
   try {

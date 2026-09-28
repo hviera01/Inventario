@@ -15,12 +15,15 @@ El programa portátil para Windows está en la sección **Releases** del reposit
 - Duplicados visibles dentro de la misma tabla, para corregirlos en su lugar.
 - Separación de «Departamento/Responsable» con vista previa.
 - Deshacer y rehacer general (botones, Ctrl+Z y Ctrl+Y).
-- Registros creados por cada usuario agrupados en su propio bloque.
+- Registros creados por cada usuario agrupados en su propio bloque; orden reagrupable en cualquier momento por Departamento, Responsable y tipo de equipo (Desktop, Laptop, Monitor, Teclado, Mouse, Teléfono IP, Impresora y demás periféricos), incluidas las filas con Departamento y Responsable todavía unidos en un solo campo. El orden de la tabla es el mismo que se exporta al Excel.
+- Sugerencias de Marca y Modelo priorizadas por el tipo de equipo escrito en Descripción (por ejemplo, escribir «Mouse» adelanta las marcas y modelos de mouse ya usados).
+- Filas marcables como «Pendiente» con un motivo visible, para dejar una duda anotada sin perder la fila de vista; vista dedicada en la barra con contador.
 - Normalización de datos: Marca y Modelo en mayúsculas, MAC en formato AA:BB:CC:DD:EE:FF, espacios sobrantes y variantes de mayúsculas.
 - Importación y exportación a Excel (tabla con el estilo del archivo original y listas desplegables).
 - Base de prueba con restablecimiento a datos reales y copia automática previa.
-- Respaldo diario a una carpeta (por ejemplo, la de Google Drive) y copias automáticas locales.
-- Acceso desde otros equipos, tabletas y celulares por la red local, con PIN.
+- Respaldo diario a una carpeta (por ejemplo, la de Google Drive): el respaldo nuevo reemplaza al anterior, no se acumulan archivos. Copias automáticas locales aparte.
+- Acceso desde otros equipos, tabletas y celulares por la red local, con PIN. Quién está conectado se ve en una esquina de la barra inferior, con aviso si alguien se desconecta o se pierde la conexión con el servidor.
+- La ficha de registro puede minimizarse para ver la tabla sin perder lo que se llevaba escrito, y volver a abrirla donde se dejó.
 - Aviso de versión nueva: al abrir el programa, revisa si hay una versión más reciente y, si la hay, ofrece abrir la página de descarga (no se actualiza solo).
 
 ## Tecnología

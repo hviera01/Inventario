@@ -57,7 +57,7 @@
     const cabeza = cols.some((c) => c.k === 'nombre') ? 'nombre' : cols[0] && cols[0].k;
     const cls = [
       S.activoId === f.id ? 'activa' : '', S.seleccion.has(f.id) ? 'sel' : '', S.recienteIds.has(f.id) ? 'nueva' : '',
-      esFija ? 'fija' : '', info && info.ini ? 'grupo-ini' : '',
+      esFija ? 'fija' : '', info && info.ini ? 'grupo-ini' : '', f.pendiente ? 'pendiente' : '',
     ].filter(Boolean).join(' ');
     const celdas = cols.map((c) => {
       const k = c.k;
@@ -70,7 +70,9 @@
       return `<td class="${cl}"${st}>${esc(String(f[k] || ''))}${quien}</td>`;
     }).join('');
     const g = info ? ` g${info.grupo % 6}` : '';
-    return `<tr data-id="${f.id}" class="${cls}"><td class="n${g}" title="Clic para seleccionar la fila">${pad(n)}</td>${celdas}</tr>`;
+    const pend = f.pendiente ? ' pend' : '';
+    const tituloN = f.pendiente ? `Pendiente: ${esc(f.motivo_pendiente || 'sin motivo')} · clic para seleccionar la fila` : 'Clic para seleccionar la fila';
+    return `<tr data-id="${f.id}" class="${cls}"><td class="n${g}${pend}" title="${tituloN}">${pad(n)}</td>${celdas}</tr>`;
   }
 
   function estructuraHtml(cols, izq, fin) {
@@ -287,6 +289,7 @@
       { icono: 'pin', texto: fijas.has(id) ? 'Desanclar fila' : 'Anclar fila arriba', fn: () => anclarFila(id) },
       B.separarDepartamento(f.departamento) ? { icono: 'separar', texto: 'Separar departamento y responsable', fn: emitir('separar') } : null,
       info ? { icono: 'check', texto: 'Marcar duplicado como correcto', fn: emitir('ignorar-dup') } : null,
+      f.pendiente ? { icono: 'alerta', texto: 'Ver motivo / quitar pendiente', fn: emitir('pendiente') } : { icono: 'alerta', texto: 'Marcar como pendiente…', fn: emitir('pendiente') },
       { sep: true },
       varias ? { icono: 'lote', texto: `Editar un campo en ${S.seleccion.size} filas…`, fn: () => INV.bus.emit('accion', 'lote') } : null,
       { icono: 'papelera', texto: varias ? `Eliminar ${S.seleccion.size} filas` : 'Eliminar fila', peligro: true, pista: 'Ctrl+Supr', fn: emitir('eliminar') },

@@ -108,12 +108,15 @@
   }
 
   const pila = [];
-  function abrirHoja({ titulo, rotulo = '', clase = '', cuerpo, pie = null, alCerrar = null, sinCerrar = false, sello: st = null }) {
+  function abrirHoja({ titulo, rotulo = '', clase = '', cuerpo, pie = null, alCerrar = null, sinCerrar = false, sello: st = null, minimizable = false }) {
     const velo = h('div', { class: 'velo' + (clase.includes('completa') ? ' completa' : '') });
+    let chip = null;
+    const btnMin = minimizable ? h('button', { class: 'minimizar', type: 'button', 'aria-label': 'Ver la tabla sin cerrar', title: 'Ver la tabla sin cerrar (los datos se conservan)', onclick: () => api.minimizar() }, ico('tabla')) : null;
     const btnCerrar = h('button', { class: 'cerrar', 'aria-label': 'Cerrar', title: 'Cerrar (Esc)', onclick: () => solicitarCierre() }, ico('cerrar'));
     const cab = h('div', { class: 'hoja-cab' },
       h('div', null, rotulo ? h('span', { class: 'rotulo' }, rotulo) : null, h('h2', null, titulo)),
       st ? h('span', { class: 'sello-estado ' + (st.clase || '') }, st.texto) : null,
+      btnMin,
       sinCerrar ? null : btnCerrar);
     const cuerpoEl = h('div', { class: 'hoja-cuerpo' }, cuerpo);
     const pieEl = pie ? h('div', { class: 'hoja-pie' }, pie) : null;
@@ -121,12 +124,29 @@
     velo.appendChild(hoja);
     document.body.appendChild(velo);
     const api = {
-      el: hoja, velo, cuerpoEl, pieEl, cab,
+      el: hoja, velo, cuerpoEl, pieEl, cab, minimizada: false,
       cerrar() {
         const i = pila.indexOf(api);
         if (i >= 0) pila.splice(i, 1);
+        if (chip) { chip.remove(); chip = null; }
         velo.remove();
         if (alCerrar) alCerrar();
+      },
+      minimizar() {
+        if (!minimizable || api.minimizada) return;
+        api.minimizada = true;
+        velo.classList.add('minimizada');
+        const i = pila.indexOf(api);
+        if (i >= 0) pila.splice(i, 1);
+        chip = h('button', { type: 'button', class: 'chip-min', onclick: () => api.restaurar() }, ico('editar'), h('span', null, `${titulo} · sin guardar`));
+        document.body.appendChild(chip);
+      },
+      restaurar() {
+        if (!api.minimizada) return;
+        api.minimizada = false;
+        velo.classList.remove('minimizada');
+        if (chip) { chip.remove(); chip = null; }
+        pila.push(api);
       },
       guardia: null,
       poner(nuevo) { cuerpoEl.replaceChildren(...[].concat(nuevo)); },

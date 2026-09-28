@@ -85,6 +85,50 @@ test('db: crear, editar con control de versión, eliminar, restaurar, orden', ()
   db.cerrar();
 });
 
+test('db: filas nuevas se agrupan por responsable y ordenadas por tipo de equipo', () => {
+  const db = new Inventario(':memory:');
+  db.crear({ nombre: 'Allan monitor', descripcion: 'Monitor', responsable: 'Allan', departamento: 'TI' }, 'Henry');
+  db.crear({ nombre: 'Otro equipo', descripcion: 'Impresora', responsable: 'Beto', departamento: 'TI' }, 'Henry');
+  db.crear({ nombre: 'Allan desktop', descripcion: 'Desktop', responsable: 'Allan', departamento: 'TI' }, 'Henry');
+  db.crear({ nombre: 'Allan mouse', descripcion: 'Mouse inalámbrico', responsable: 'Allan', departamento: 'TI' }, 'Henry');
+  const nombres = db.listar().map((f) => f.nombre);
+  assert.deepEqual(nombres, ['Allan desktop', 'Allan monitor', 'Allan mouse', 'Otro equipo']);
+  db.cerrar();
+});
+
+test('db: reordenarPorResponsable agrupa por depto/responsable, incluso con depto y responsable unidos', () => {
+  const db = new Inventario(':memory:');
+  db.crear({ nombre: 'Beto teclado', descripcion: 'Teclado', responsable: 'Beto', departamento: 'Ventas' }, 'Henry');
+  db.crear({ nombre: 'Unido printer', descripcion: 'Impresora', departamento: 'Caja/Marleny Medina' }, 'Henry');
+  db.crear({ nombre: 'Allan mouse', descripcion: 'Mouse', responsable: 'Allan', departamento: 'TI' }, 'Henry');
+  db.crear({ nombre: 'Beto desktop', descripcion: 'Desktop', responsable: 'Beto', departamento: 'Ventas' }, 'Henry');
+  db.crear({ nombre: 'Allan desktop', descripcion: 'Desktop', responsable: 'Allan', departamento: 'TI' }, 'Henry');
+  db.crear({ nombre: 'Unido mouse', descripcion: 'Mouse', departamento: 'Caja/Marleny Medina' }, 'Henry');
+  db.reordenarPorResponsable('Henry');
+  const filas = db.listar();
+  const iAllanDesktop = filas.findIndex((f) => f.nombre === 'Allan desktop');
+  const iAllanMouse = filas.findIndex((f) => f.nombre === 'Allan mouse');
+  assert.ok(iAllanDesktop >= 0 && iAllanMouse === iAllanDesktop + 1, 'Allan: desktop antes que mouse, seguidos');
+  const iUnidoPrinter = filas.findIndex((f) => f.nombre === 'Unido printer');
+  const iUnidoMouse = filas.findIndex((f) => f.nombre === 'Unido mouse');
+  assert.ok(iUnidoPrinter >= 0 && iUnidoPrinter === iUnidoMouse + 1, 'Filas con depto/responsable unidos quedan juntas, mouse antes que impresora');
+  db.cerrar();
+});
+
+test('db: marcarPendiente y quitarPendiente', () => {
+  const db = new Inventario(':memory:');
+  const a = db.crear({ nombre: 'A' }, 'Henry');
+  assert.equal(a.pendiente, 0);
+  const marcada = db.marcarPendiente(a.id, 'Falta confirmar MAC', 'Henry');
+  assert.equal(marcada.pendiente, 1);
+  assert.equal(marcada.motivo_pendiente, 'Falta confirmar MAC');
+  const quitada = db.quitarPendiente(a.id, 'Henry');
+  assert.equal(quitada.pendiente, 0);
+  assert.equal(quitada.motivo_pendiente, '');
+  assert.throws(() => db.marcarPendiente('no-existe', 'x', 'Henry'));
+  db.cerrar();
+});
+
 test('excel real: importar + normalizar + guardar en db + exportar + releer', { skip: !hayReal }, async () => {
   const buf = fs.readFileSync(REAL);
   const imp = await importarExcel(buf);

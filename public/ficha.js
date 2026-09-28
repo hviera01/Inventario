@@ -17,7 +17,7 @@
   const MONO = new Set(['mac', 'ip', 'serie', 'modelo', 'codigo', 'id_activo']);
   const MAYUS = new Set(['marca', 'modelo']);
   const COMUNES = ['categoria', 'nomenclatura', 'tipo', 'cantidad', 'proveedor', 'ubicacion', 'departamento', 'responsable'];
-  const DEFECTOS = { categoria: C.CATEGORIAS[0], nomenclatura: 'HW', tipo: 'Fisico', cantidad: '1' };
+  const DEFECTOS = { categoria: C.CATEGORIAS[0], nomenclatura: 'HW', tipo: 'Fisico', cantidad: '1', ubicacion: 'Oficina Principal' };
 
   function resaltar(texto, q) {
     if (!q) return esc(texto);
@@ -39,6 +39,19 @@
         if (marca) {
           const m = new Map();
           for (const f of S.activos) if (f.modelo && B.norm(f.marca) === marca) m.set(f.modelo, (m.get(f.modelo) || 0) + 1);
+          const propios = [...m.entries()].sort((a, b) => b[1] - a[1]);
+          const usados = new Set(propios.map(([v]) => v));
+          return [...propios, ...base.filter(([v]) => !usados.has(v))];
+        }
+      }
+      if ((campo === 'marca' || campo === 'modelo') && (valores.descripcion || '').trim()) {
+        const familia = C.familiaEquipo(valores.descripcion).id;
+        if (familia !== 'otro') {
+          const m = new Map();
+          for (const f of S.activos) {
+            if (!f[campo] || C.familiaEquipo(f.descripcion).id !== familia) continue;
+            m.set(f[campo], (m.get(f[campo]) || 0) + 1);
+          }
           const propios = [...m.entries()].sort((a, b) => b[1] - a[1]);
           const usados = new Set(propios.map(([v]) => v));
           return [...propios, ...base.filter(([v]) => !usados.has(v))];
@@ -143,6 +156,7 @@
     const avisoMac = h('div', { class: 'aviso-campo rojo oculto' });
     const separar = h('div', { class: 'separar oculto' });
     const plantillas = h('div', { class: 'aviso-campo oculto' });
+    const avisoPendiente = h('div', { class: 'aviso-campo oculto' });
 
     function crearCampo(k, ancho) {
       let control;
@@ -184,7 +198,7 @@
     });
 
     const meta = h('div', { class: 'meta-ficha' });
-    const cuerpo = h('div', { class: 'secciones' }, meta, banda, ...secciones);
+    const cuerpo = h('div', { class: 'secciones' }, meta, banda, avisoPendiente, ...secciones);
 
     function pintarMeta() {
       const f = original && S.porId.get(id);
@@ -217,6 +231,17 @@
       });
       avisoMac.replaceChildren(nodo);
       avisoMac.classList.remove('oculto');
+    }
+
+    function pintarPendiente() {
+      const f = original && S.porId.get(id);
+      const esPendiente = !!(f && f.pendiente);
+      avisoPendiente.classList.toggle('oculto', !esPendiente);
+      if (!esPendiente) return;
+      avisoPendiente.replaceChildren(ico('alerta'), h('span', null, h('b', null, 'Marcado como pendiente'), ': ' + (f.motivo_pendiente || '')),
+        h('button', { type: 'button', class: 'btn mini', onclick: async () => {
+          try { await INV.A.quitarPendiente(id); INV.sello('Pendiente quitado', { tipo: 'bien', dur: 2200 }); } catch (e) { INV.sello(e.message, { tipo: 'mal' }); }
+        } }, 'Quitar pendiente'));
     }
 
     function avisosSeparar() {
@@ -421,7 +446,7 @@
     const rotulo = esNuevo ? 'Ficha de activo' : `Ficha de activo · Fila Excel ${INV.numeroDe(id) + 5}`;
     const hoja = INV.abrirHoja({
       titulo: esNuevo ? 'Nuevo activo' : `N° ${pad(INV.numeroDe(id))} — ${original.nombre || original.descripcion || 'sin nombre'}`,
-      rotulo, clase: 'completa', cuerpo, pie,
+      rotulo, clase: 'completa', cuerpo, pie, minimizable: true,
       sello: { texto: esNuevo ? 'Nuevo' : 'Editando', clase: esNuevo ? 'nuevo' : '' },
       alCerrar: () => { desuscribir.forEach((f) => f()); INV.A.editando(null); },
     });
@@ -455,13 +480,14 @@
         banda.classList.remove('oculto');
       }
     }
-    const desuscribir = [INV.bus.on('presencia', pintarBanda), INV.bus.on('datos', pintarBanda)];
+    const desuscribir = [INV.bus.on('presencia', pintarBanda), INV.bus.on('datos', () => { pintarBanda(); pintarPendiente(); })];
 
     Object.keys(controles).forEach(marcarCambio);
     pintarMeta();
     avisosDuplicados();
     avisosSeparar();
     pintarBanda();
+    pintarPendiente();
     if (id) INV.A.editando(id);
     setTimeout(() => {
       const primero = esNuevo && !vals.descripcion ? controles.descripcion : controles.nombre;

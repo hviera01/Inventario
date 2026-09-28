@@ -39,6 +39,7 @@
     filtros: { valores: {}, texto: {}, vacios: [], llenos: [] },
     orden: null,
     modoDup: false,
+    modoPendiente: false,
     dupVerIgnorados: false,
     dupInfo: new Map(),
     dupGrupos: [],
@@ -136,6 +137,9 @@
       const orden = calcularDup();
       const permitidos = new Set(B.filtrar(r.filas, S.filtros).map((f) => f.id));
       filas = orden.filter((id) => permitidos.has(id)).map((id) => S.porId.get(id)).filter(Boolean);
+    } else if (S.modoPendiente) {
+      S.dupInfo = new Map();
+      filas = ordenarPor(B.filtrar(r.filas, S.filtros).filter((f) => f.pendiente));
     } else {
       S.dupInfo = new Map();
       filas = ordenarPor(B.filtrar(r.filas, S.filtros));
@@ -146,9 +150,19 @@
 
   function ponerModoDup(v) {
     S.modoDup = !!v;
+    if (S.modoDup) S.modoPendiente = false;
     recalcular();
     bus.emit('modo-dup');
   }
+
+  function ponerModoPendiente(v) {
+    S.modoPendiente = !!v;
+    if (S.modoPendiente) S.modoDup = false;
+    recalcular();
+    bus.emit('modo-pendiente');
+  }
+
+  const pendientesCount = () => S.activos.filter((f) => f.pendiente).length;
 
   const candidatosSeparar = () => S.activos.filter((f) => B.separarDepartamento(f.departamento));
 
@@ -395,7 +409,39 @@
       });
     },
     editando(id) { return pedir('POST', '/api/edicion', { cid, id: id || null }).catch(() => {}); },
+    async marcarPendiente(id, motivo) {
+      const antes = S.porId.get(id);
+      const motivoAntes = antes ? antes.motivo_pendiente || '' : '';
+      const pendienteAntes = !!(antes && antes.pendiente);
+      const fila = await pedir('POST', '/api/activos/pendiente', { id, motivo });
+      const i = S.activos.findIndex((f) => f.id === id);
+      if (i >= 0) S.activos[i] = fila;
+      reconstruir();
+      bus.emit('datos');
+      registrar({
+        etiqueta: 'marcar pendiente',
+        deshacer: () => (pendienteAntes ? A.marcarPendiente(id, motivoAntes) : A.quitarPendiente(id)),
+        rehacer: () => A.marcarPendiente(id, motivo),
+      });
+      return fila;
+    },
+    async quitarPendiente(id) {
+      const antes = S.porId.get(id);
+      const motivoAntes = antes ? antes.motivo_pendiente || '' : '';
+      const fila = await pedir('POST', '/api/activos/pendiente/quitar', { id });
+      const i = S.activos.findIndex((f) => f.id === id);
+      if (i >= 0) S.activos[i] = fila;
+      reconstruir();
+      bus.emit('datos');
+      registrar({ etiqueta: 'quitar pendiente', deshacer: () => A.marcarPendiente(id, motivoAntes), rehacer: () => A.quitarPendiente(id) });
+      return fila;
+    },
   };
+
+  async function reordenar() {
+    await pedir('POST', '/api/reordenar');
+    await cargar();
+  }
 
   function canon(campo, valor) {
     return window.Campos.canonizar(campo, valor, S.existentes);
@@ -406,5 +452,5 @@
     return S.presencia.find((p) => p.editando === id && p.cid !== cid) || null;
   }
 
-  Object.assign(INV, { bus, S, pedir, cargar, aplicarDatos, conectarEventos, ponerConsulta, ponerFiltros, limpiarFiltros, hayFiltros, filtroDe, ponerModoDup, candidatosSeparar, A, Deshacer, conteosDe, duplicados, pendientesDuplicados, guardado, guardar, canon, numeroDe, quienEdita, recalcular, CLAVES });
+  Object.assign(INV, { bus, S, pedir, cargar, aplicarDatos, conectarEventos, ponerConsulta, ponerFiltros, limpiarFiltros, hayFiltros, filtroDe, ponerModoDup, ponerModoPendiente, pendientesCount, candidatosSeparar, A, Deshacer, conteosDe, duplicados, pendientesDuplicados, guardado, guardar, canon, numeroDe, quienEdita, recalcular, reordenar, CLAVES });
 })();

@@ -89,6 +89,27 @@ test('servidor: actualizar varias filas con valores distintos en una sola operac
   } finally { await s.cerrar(); }
 });
 
+test('servidor: marcar/quitar pendiente y reordenar por responsable', async () => {
+  const s = await levantar();
+  try {
+    const a = (await s.api('POST', '/api/activos', { datos: { nombre: 'A', descripcion: 'Mouse', responsable: 'Allan', departamento: 'TI' } })).data;
+    const b = (await s.api('POST', '/api/activos', { datos: { nombre: 'B', descripcion: 'Desktop', responsable: 'Allan', departamento: 'TI' } })).data;
+    const marcado = await s.api('POST', '/api/activos/pendiente', { id: a.id, motivo: 'Falta confirmar MAC' });
+    assert.equal(marcado.status, 200);
+    assert.equal(marcado.data.pendiente, 1);
+    assert.equal(marcado.data.motivo_pendiente, 'Falta confirmar MAC');
+    const quitado = await s.api('POST', '/api/activos/pendiente/quitar', { id: a.id });
+    assert.equal(quitado.data.pendiente, 0);
+    const noExiste = await s.api('POST', '/api/activos/pendiente', { id: '00000000-0000-0000-0000-000000000000', motivo: 'x' });
+    assert.equal(noExiste.status, 400);
+    const reord = await s.api('POST', '/api/reordenar', {});
+    assert.equal(reord.status, 200);
+    assert.equal(reord.data.filas, 2);
+    const orden = (await s.api('GET', '/api/datos')).data.activos.map((f) => f.nombre);
+    assert.deepEqual(orden, ['B', 'A']);
+  } finally { await s.cerrar(); }
+});
+
 test('servidor: importar (vista previa y real), modo prueba, exportar y reiniciar', async () => {
   const s = await levantar();
   try {
@@ -141,9 +162,13 @@ test('servidor: respaldo exige carpeta y genera Excel y base', async () => {
     assert.equal(ok.status, 200);
     const archivos = fs.readdirSync(carpeta);
     assert.equal(archivos.length, 2);
-    assert.ok(archivos.every((a) => a.includes('_PRUEBA_')));
-    assert.ok(archivos.some((a) => a.endsWith('.xlsx')) && archivos.some((a) => a.endsWith('.db')));
+    assert.ok(archivos.includes('Inventario de Hardware_PRUEBA.xlsx'));
+    assert.ok(archivos.includes('inventario_PRUEBA.db'));
     assert.equal(s.srv.respaldadoHoy(), true);
+    await s.api('POST', '/api/activos', { datos: { nombre: 'Z', descripcion: 'W' } });
+    const otra = await s.api('POST', '/api/respaldo', {});
+    assert.equal(otra.status, 200);
+    assert.equal(fs.readdirSync(carpeta).length, 2);
   } finally { await s.cerrar(); }
 });
 

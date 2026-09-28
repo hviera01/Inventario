@@ -9,6 +9,8 @@
   const COMUNES = ['categoria', 'nomenclatura', 'tipo', 'cantidad', 'proveedor', 'ubicacion', 'departamento', 'responsable'];
   let pidiendoPin = false;
   let ultimoGuardado = 0;
+  let conexionAvisada = true;
+  let presenciaPrevia = null;
 
   function aplicarPreferencias() {
     const tema = INV.guardado('inv.tema', 'oscuro');
@@ -67,6 +69,7 @@
     const btnFiltros = h('button', { class: 'btn cinta', id: 'btn-filtros', type: 'button', title: 'Filtros por columna', onclick: alternarFiltros }, ico('filtro'), h('span', { class: 'txt-btn' }, 'Filtros'), h('span', { class: 'insignia oculto', id: 'ins-filtros' }));
     const btnSeparar = h('button', { class: 'btn cinta oculto', id: 'btn-separar', type: 'button', title: 'Separar departamento y responsable unidos', onclick: () => INV.Paneles.separarDepartamentos() }, ico('separar'), h('span', { class: 'txt-btn' }, 'Separar departamentos'), h('span', { class: 'insignia', id: 'ins-separar' }));
     const btnDup = h('button', { class: 'btn cinta', id: 'btn-dup', type: 'button', title: 'Ver y corregir duplicados', onclick: () => INV.ponerModoDup(!S.modoDup) }, ico('duplicados'), h('span', { class: 'txt-btn' }, 'Duplicados'), h('span', { class: 'insignia oculto', id: 'ins-dup' }));
+    const btnPend = h('button', { class: 'btn cinta', id: 'btn-pend', type: 'button', title: 'Ver filas marcadas como pendientes', onclick: () => INV.ponerModoPendiente(!S.modoPendiente) }, ico('alerta'), h('span', { class: 'txt-btn' }, 'Pendientes'), h('span', { class: 'insignia oculto', id: 'ins-pend' }));
     const btnNuevo = h('button', { class: 'btn cinta senal', type: 'button', title: 'Agregar registro (Alt+N)', onclick: () => nuevo() }, ico('mas'), h('span', { class: 'txt-btn' }, 'Agregar'));
     const btnMas = h('button', { class: 'btn cinta icono', type: 'button', 'aria-label': 'Más opciones', onclick: (e) => menuMas(e.currentTarget) }, ico('menu'));
     const leds = h('div', { class: 'leds', id: 'leds' });
@@ -75,18 +78,19 @@
     const barra = h('header', { id: 'barra' },
       h('div', { class: 'marca' }, marcaSvg(), h('b', null, 'Inventario'), pastilla),
       slot,
-      h('div', { class: 'acciones' }, btnDeshacer, btnRehacer, btnFiltros, btnSeparar, btnDup, btnNuevo, btnMas, leds));
+      h('div', { class: 'acciones' }, btnDeshacer, btnRehacer, btnFiltros, btnSeparar, btnDup, btnPend, btnNuevo, btnMas));
     leds.appendChild(enlace);
 
     const panelFiltros = h('section', { id: 'panel-filtros', class: 'panel-filtros oculto', 'aria-label': 'Filtros por columna' });
     const franjaDup = h('div', { class: 'franja-info aviso oculto', id: 'franja-dup' });
+    const franjaPend = h('div', { class: 'franja-info aviso oculto', id: 'franja-pend' });
     const barraSel = h('div', { class: 'barra-sel oculto', id: 'barra-sel' });
     const libro = h('main', { id: 'libro', tabindex: '-1' });
     const estadoInfo = h('div', { id: 'estado-info' });
-    const estado = h('footer', { id: 'estado' }, estadoInfo, crearControlZoom());
+    const estado = h('footer', { id: 'estado' }, estadoInfo, leds, crearControlZoom());
     const fab = h('button', { id: 'fab', type: 'button', 'aria-label': 'Agregar registro', onclick: () => nuevo() }, ico('mas'));
-    document.body.append(barra, panelFiltros, franjaDup, barraSel, libro, estado, fab, h('div', { id: 'sellos' }));
-    Object.assign(refs, { entrada, slot, nota, pastilla, barraSel, franjaDup, libro, estado, estadoInfo, leds, enlace });
+    document.body.append(barra, panelFiltros, franjaDup, franjaPend, barraSel, libro, estado, fab, h('div', { id: 'sellos' }));
+    Object.assign(refs, { entrada, slot, nota, pastilla, barraSel, franjaDup, franjaPend, libro, estado, estadoInfo, leds, enlace });
     INV.Filtros.montarPanel(panelFiltros);
     INV.Libro.montar(libro);
   }
@@ -133,6 +137,7 @@
     if (S.local) items.push({ icono: 'alerta', texto: 'Restablecer base de datos…', fn: () => INV.Paneles.reiniciar() });
     items.push({ sep: true });
     if (INV.candidatosSeparar().length) items.push({ icono: 'separar', texto: 'Separar departamentos y responsables', fn: () => INV.Paneles.separarDepartamentos() });
+    items.push({ icono: 'tabla', texto: 'Reordenar filas por responsable…', fn: reordenarFilas });
     items.push({ icono: 'tabla', texto: 'Columnas visibles…', fn: () => INV.Paneles.columnas() });
     items.push({ icono: document.documentElement.dataset.tema === 'claro' ? 'luna' : 'sol', texto: document.documentElement.dataset.tema === 'claro' ? 'Tema oscuro' : 'Tema claro', fn: cambiarTema });
     items.push({ icono: 'texto', texto: 'Aumentar tamaño de texto', fn: () => cambiarZoom(PASO_ZOOM), pista: 'Ctrl+1' });
@@ -153,6 +158,13 @@
       previo.yo = previo.yo || p.cid === S.cid;
       gente.set(p.nombre, previo);
     });
+    const ahora = new Set([...gente.values()].filter((g) => !g.yo).map((g) => g.nombre));
+    if (presenciaPrevia) {
+      for (const nombre of presenciaPrevia) {
+        if (!ahora.has(nombre)) INV.sello(`${nombre} se desconectó`, { tipo: 'mal', dur: 5000 });
+      }
+    }
+    presenciaPrevia = ahora;
     const hijos = [...gente.values()].map((g) => h('span', {
       class: 'led en-linea' + (g.yo ? ' yo' : '') + (g.editando ? ' editando' : ''),
       title: `${g.nombre}${g.yo ? ' (este equipo)' : ''}${g.editando ? ' · editando un registro' : ' · en línea'}`,
@@ -168,6 +180,11 @@
     p.className = 'punto' + (S.conectado ? '' : ' caido');
     t.textContent = S.conectado ? 'Conectado' : 'Sin conexión';
     refs.enlace.style.color = S.conectado ? '' : 'var(--peligro)';
+    if (S.conectado !== conexionAvisada) {
+      conexionAvisada = S.conectado;
+      if (!S.conectado) INV.sello('Se perdió la conexión con el equipo servidor. Los cambios no se están guardando.', { tipo: 'mal', titulo: 'Sin conexión', dur: 9000 });
+      else INV.sello('Conexión restablecida', { tipo: 'bien', dur: 3000 });
+    }
   }
 
   function pintarBarra() {
@@ -196,6 +213,12 @@
     ins.classList.toggle('oculto', dup === 0);
     document.getElementById('btn-dup').classList.toggle('activo', S.modoDup);
     document.getElementById('btn-dup').classList.toggle('alerta', dup > 0 && !S.modoDup);
+    const pend = INV.pendientesCount();
+    const insP = document.getElementById('ins-pend');
+    insP.textContent = pend;
+    insP.classList.toggle('oculto', pend === 0);
+    document.getElementById('btn-pend').classList.toggle('activo', S.modoPendiente);
+    document.getElementById('btn-pend').classList.toggle('alerta', pend > 0 && !S.modoPendiente);
     refs.pastilla.classList.toggle('oculto', !S.ajustes.modoPrueba);
   }
 
@@ -212,6 +235,18 @@
       h('label', { style: { display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' } },
         h('input', { type: 'checkbox', checked: S.dupVerIgnorados, onchange: (e) => { S.dupVerIgnorados = e.target.checked; INV.recalcular(); } }), 'Incluir descartados'),
       h('button', { class: 'btn mini', type: 'button', onclick: () => INV.ponerModoDup(false) }, 'Salir'));
+  }
+
+  function pintarFranjaPendiente() {
+    const el = refs.franjaPend;
+    el.classList.toggle('oculto', !S.modoPendiente);
+    if (!S.modoPendiente) return;
+    const n = S.resultado.filas.length;
+    el.replaceChildren(
+      h('b', null, n ? `${n} ${n === 1 ? 'fila pendiente' : 'filas pendientes'}` : 'No hay filas pendientes'),
+      h('span', null, n ? 'Clic derecho en una fila para ver el motivo o quitarla de pendientes.' : ''),
+      h('span', { class: 'relleno' }),
+      h('button', { class: 'btn mini', type: 'button', onclick: () => INV.ponerModoPendiente(false) }, 'Salir'));
   }
 
   function pintarSeleccion() {
@@ -259,6 +294,7 @@
   function actualizarTodo() {
     pintarBarra();
     pintarFranjaDup();
+    pintarFranjaPendiente();
     pintarSeleccion();
     pintarEstado();
   }
@@ -348,6 +384,43 @@
     INV.sello('Marcado como correcto', { tipo: 'bien', dur: 2500 });
   }
 
+  async function pedirMotivoPendiente(valorInicial) {
+    const area = h('textarea', { rows: '3', maxlength: 300, placeholder: 'Ej. Falta confirmar con el proveedor si esta MAC es correcta', style: { width: '100%', resize: 'vertical', font: 'inherit', padding: '8px 10px' } });
+    area.value = valorInicial || '';
+    const ok = await INV.confirmar({ titulo: 'Marcar como pendiente', texto: 'Explique brevemente la duda o lo que falta revisar de esta fila.', ok: 'MARCAR PENDIENTE', extra: area });
+    if (!ok) return null;
+    const motivo = area.value.trim();
+    if (!motivo) { INV.sello('Escriba un motivo.', { tipo: 'mal' }); return null; }
+    return motivo;
+  }
+
+  async function reordenarFilas() {
+    const ok = await INV.confirmar({
+      titulo: 'Reordenar filas',
+      texto: 'Se reacomodan todas las filas: primero por Departamento, luego por Responsable, y dentro de cada responsable por tipo de equipo (Desktop, Laptop, Monitor, Teclado, Mouse, Teléfono IP, Impresora y demás periféricos). Las filas con Departamento y Responsable unidos en un solo campo también se agrupan por ese texto. Esto no se puede deshacer con Ctrl+Z.',
+      ok: 'REORDENAR',
+    });
+    if (!ok) return;
+    try {
+      await INV.reordenar();
+      INV.sello('Filas reordenadas', { tipo: 'bien', dur: 3000 });
+    } catch (e) { INV.sello(e.message, { tipo: 'mal' }); }
+  }
+
+  async function alternarPendiente(id) {
+    const f = S.porId.get(id);
+    if (!f) return;
+    if (f.pendiente) {
+      const quitar = await INV.confirmar({ titulo: 'Fila pendiente', texto: f.motivo_pendiente || '(sin motivo)', ok: 'QUITAR PENDIENTE', cancelar: 'CERRAR' });
+      if (!quitar) return;
+      try { await INV.A.quitarPendiente(id); INV.sello('Pendiente quitado', { tipo: 'bien', dur: 2200 }); } catch (e) { INV.sello(e.message, { tipo: 'mal' }); }
+    } else {
+      const motivo = await pedirMotivoPendiente();
+      if (!motivo) return;
+      try { await INV.A.marcarPendiente(id, motivo); INV.sello('Marcado como pendiente', { tipo: 'bien', dur: 2200 }); } catch (e) { INV.sello(e.message, { tipo: 'mal' }); }
+    }
+  }
+
   function enlazarAcciones() {
     INV.bus.on('fila-accion', ({ accion, id }) => {
       if (accion === 'editar' && id) INV.Ficha.abrir({ id });
@@ -355,6 +428,7 @@
       else if (accion === 'insertar' && id) insertarDebajo(id);
       else if (accion === 'separar' && id) separarFila(id);
       else if (accion === 'ignorar-dup' && id) ignorarDuplicado(id);
+      else if (accion === 'pendiente' && id) alternarPendiente(id);
       else if (accion === 'eliminar') eliminar(S.seleccion.size ? [...S.seleccion] : [id]);
     });
     INV.bus.on('accion', (a) => {
@@ -378,6 +452,7 @@
     INV.bus.on('seleccion', () => { pintarSeleccion(); pintarEstado(); });
     INV.bus.on('datos', () => { actualizarTodo(); pintarLeds(); });
     INV.bus.on('modo-dup', actualizarTodo);
+    INV.bus.on('modo-pendiente', actualizarTodo);
     INV.bus.on('activa', pintarEstado);
     INV.bus.on('celda', pintarEstado);
     INV.bus.on('celda-guardada', () => { ultimoGuardado = Date.now(); pintarEstado(); });
